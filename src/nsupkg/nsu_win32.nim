@@ -57,12 +57,12 @@ proc nsu_genFilePath* (fileName,savePath: string): string =
  if fileName == "":
   var
    tStamp: string = ""
-   iTimeNow: int = getTime().toSeconds().toInt()
+   iTimeNow: Time = getTime()
   when defined(deprecated):
-    let timeNowUtc = getGMTime(fromSeconds(iTimeNow))
+    let timeNowUtc = getGMTime(iTimeNow)
     tStamp = format(timeNowUtc,"yyyy-MM-dd-HH'_'mm'_'ss")
   else:
-    let timeNowUtc = utc(fromUnix(iTimeNow))
+    let timeNowUtc = utc(iTimeNow)
     tStamp = timeNowUtc.format("yyyy-MM-dd-HH'_'mm'_'ss")
   result = joinPath(if savePath == "": picturesPath else: savePath, "$1_$2.png" % [tstamp, "nsu"])
  else:
@@ -70,7 +70,7 @@ proc nsu_genFilePath* (fileName,savePath: string): string =
 
 
 proc nsu_save_image(destPath: string, hdc: HDC, hBitmap: HBITMAP, width, height: int): bool =
-  var image = newImage(width, height, 4) 
+  var image = newImage(width, height, 4)
 
   # setup bmi structure
   var mybmi: BITMAPINFO
@@ -81,7 +81,7 @@ proc nsu_save_image(destPath: string, hdc: HDC, hBitmap: HBITMAP, width, height:
   mybmi.bmiHeader.biBitCount = 32
   mybmi.bmiHeader.biCompression = BI_RGB
   mybmi.bmiHeader.biSizeImage = DWORD(width * height * 4.int32)
-  
+
   # copy data from bmi structure to the flippy image
   discard CreateDIBSection(hdc, addr mybmi, DIB_RGB_COLORS, cast[ptr pointer](unsafeAddr(image.data[0])), 0, 0)
   discard GetDIBits(hdc, hBitmap, 0, height.UINT, cast[ptr pointer](unsafeAddr(image.data[0])), addr mybmi, DIB_RGB_COLORS)
@@ -328,7 +328,7 @@ proc nsu_take_ss*(mode: NsuMode, fileName: string = "", savePath: string = "",
  of FULL:
   var devModeSettings: DEVMODE
   discard EnumDisplaySettings(nil, ENUM_CURRENT_SETTINGS, addr devModeSettings )
-  width = devModeSettings.dmPelsWidth 
+  width = devModeSettings.dmPelsWidth
   height = devmodeSettings.dmPelsHeight
   hDesktopWnd = GetDesktopWindow()
   hDesktopDC = GetDC(hDesktopWnd)
