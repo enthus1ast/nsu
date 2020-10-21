@@ -1,7 +1,7 @@
 import strutils, os, times
 import flippy
 import x11/x, x11/xlib, x11/xutil
-import nsu_types
+import nsu_types, nsu_shared
 
 
 proc nsu_save_image(destPath: string, pximage: PXImage, width, height: int): bool =
@@ -24,24 +24,6 @@ proc nsu_save_image(destPath: string, pximage: PXImage, width, height: int): boo
   image.save(destPath)
   return true
 
-
-proc nsu_countDown(delay: int) =
- var start = delay
- stdout.writeLine("Taking screenshot in $1 second$2.." % [$delay,
-   if delay == 1: "" else: "s"])
- for i in 1..delay:
-  stdout.write("$1.." % $start)
-  flushFile(stdout)
-  dec(start)
-  sleep(1000)
- stdout.write("\n")
-
-proc nsu_silentDelay(delay: int) =
- case delay
- of 1..15:
-  sleep(delay*1000)
- else:
-  discard
 
 proc nsu_getActiveWindow (delay: int = 0):TWindow =
  result = cast[TWindow](culong(0))
@@ -154,6 +136,8 @@ proc nsu_selWindowOrArea (isAreaSelection: bool): TSelVal =
  result.height = height
  result.window = selWindow
 
+
+## Move to nsu_shared
 proc nsu_genFilePath* (fileName,savePath: string): string =
  ## Generates full file path if not specified.
  var

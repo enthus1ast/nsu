@@ -1,7 +1,7 @@
 import strutils, os, times
 import flippy
 import winim
-import nsu_types
+import nsu_types, nsu_shared
 
 
 const
@@ -31,24 +31,8 @@ proc clear(val: var TSelVal)=
  val.window = NULL
  val.useWindow = false
 
-proc nsu_countDown(delay: int) =
- var start = delay
- stdout.writeLine("Taking screenshot in $1 second$2.." % [$delay,
-   if delay == 1: "" else: "s"])
- for i in 1..delay:
-  stdout.write("$1.." % $start)
-  flushFile(stdout)
-  dec(start)
-  sleep(1000)
- stdout.write("\n")
 
-proc nsu_silentDelay(delay: int) =
- case delay
- of 1..15:
-  sleep(delay*1000)
- else:
-  discard
-
+## Move to nsu_shared
 proc nsu_genFilePath* (fileName,savePath: string): string =
  ## Generates full file path if not specified.
  ## If no path, save to attempt to save into home/pictures
@@ -198,7 +182,7 @@ proc nsuWndProc (hWnd: HWND, uMsg: UINT, wParam: WPARAM, lParam: LPARAM): LRESUL
 
  return 0
 
-proc nsu_init_windows():HWND =
+proc nsu_init_windows(): HWND =
   var
     wc: WNDCLASSEX
     hwnd: HWND
@@ -248,7 +232,7 @@ proc nsu_get_ss*(mode: NsuMode, delay: int, countDown: bool = false): Image =
   var
     width, height: cint = 0
     selWinRc: RECT
-    hDesktopDC, hCaptureDC,hCustomDC: HDC
+    hDesktopDC, hCaptureDC, hCustomDC: HDC
     hCaptureBitmap: HBITMAP
     hDesktopWnd: HWND
 
