@@ -68,9 +68,8 @@ proc nsu_genFilePath* (fileName,savePath: string): string =
  else:
   result = joinPath(if savePath == "": picturesPath else: savePath, fileName)
 
-
-proc nsu_save_image(destPath: string, hdc: HDC, hBitmap: HBITMAP, width, height: int): bool =
-  var image = newImage(width, height, 4)
+proc nsu_to_image(hdc: HDC, hBitmap: HBITMAP, width, height: int): Image =
+  result = newImage(width, height, 4)
 
   # setup bmi structure
   var mybmi: BITMAPINFO
@@ -83,22 +82,22 @@ proc nsu_save_image(destPath: string, hdc: HDC, hBitmap: HBITMAP, width, height:
   mybmi.bmiHeader.biSizeImage = DWORD(width * height * 4.int32)
 
   # copy data from bmi structure to the flippy image
-  discard CreateDIBSection(hdc, addr mybmi, DIB_RGB_COLORS, cast[ptr pointer](unsafeAddr(image.data[0])), 0, 0)
-  discard GetDIBits(hdc, hBitmap, 0, height.UINT, cast[ptr pointer](unsafeAddr(image.data[0])), addr mybmi, DIB_RGB_COLORS)
+  discard CreateDIBSection(hdc, addr mybmi, DIB_RGB_COLORS, cast[ptr pointer](unsafeAddr(result.data[0])), 0, 0)
+  discard GetDIBits(hdc, hBitmap, 0, height.UINT, cast[ptr pointer](unsafeAddr(result.data[0])), addr mybmi, DIB_RGB_COLORS)
 
   # for some reason windows bitmaps are flipped? flip it back
-  image = image.flipVertical()
+  result = result.flipVertical()
   # for some reason windows uses BGR, convert it to RGB
-  for x in 0 ..< image.width:
-    for y in 0 ..< image.height:
-      var pixel = image.getRgba(x, y)
+  for x in 0 ..< result.width:
+    for y in 0 ..< result.height:
+      var pixel = result.getRgba(x, y)
       (pixel.r, pixel.g, pixel.b) = (pixel.b, pixel.g, pixel.r)
-      image.putRgba(x, y, pixel)
+      result.putRgba(x, y, pixel)
 
+proc nsu_save_image(destPath: string, hdc: HDC, hBitmap: HBITMAP, width, height: int): bool =
+  var image = nsu_to_image(hdc, hBitmap, width, height)
   image.save(destPath)
   return true
-
-
 
 proc nsuRedrawSelection (hWnd: HWND, rect: RECT)=
  var
@@ -148,7 +147,7 @@ proc nsuWndProc (hWnd: HWND, uMsg: UINT, wParam: WPARAM, lParam: LPARAM): LRESUL
    if rcSel.right > rcClient.right: rcSel.right = rcClient.right
    if rcSel.bottom < 0: rcSel.bottom = 0
    if rcSel.bottom > rcClient.bottom: rcSel.bottom = rcClient.bottom
-   # discard InvalidateRect( hwnd, nil, 1 )
+   # discard InvalidateRect(hwnd, nil, 1)
    nsuRedrawSelection(hWnd, rcSel)
 
  of WM_LBUTTONUP:
@@ -199,7 +198,7 @@ proc nsuWndProc (hWnd: HWND, uMsg: UINT, wParam: WPARAM, lParam: LPARAM): LRESUL
    PostQuitMessage(0)
 
  else:
-  return DefWindowProc( hWnd, uMsg, wParam, lParam )
+  return DefWindowProc(hWnd, uMsg, wParam, lParam)
 
  return 0
 
@@ -218,7 +217,7 @@ proc nsu_init_windows():HWND =
   wc.cbWndExtra    = 0
   wc.hInstance     = hInstance
   wc.hbrBackground = (HBRUSH)0
-  wc.hCursor       = LoadCursor( NULL, IDC_CROSS )
+  wc.hCursor       = LoadCursor(NULL, IDC_CROSS)
   wc.lpszMenuName  = nil
   wc.hIcon        = NULL
   wc.lpszClassName = nsuClassName
@@ -227,7 +226,7 @@ proc nsu_init_windows():HWND =
     stdout.writeLine("[nsu] Window Registration Failed!")
     return
 
-  hwnd = CreateWindowEx( 0, nsuClassName, "",
+  hwnd = CreateWindowEx(0, nsuClassName, "",
          WS_POPUP, 0,0, GetSystemMetrics(78), GetSystemMetrics(79),
             NULL, NULL , hInstance, nil)
 
@@ -247,6 +246,7 @@ proc nsu_init_windows():HWND =
     stdout.writeLine("[nsu] Failed to setup subwindow ! $1" % [$err])
     return
   result = hwnd
+
 
 proc nsu_take_ss*(mode: NsuMode, fileName: string = "", savePath: string = "",
                    delay:int = 0, countDown: bool = false): string =
@@ -279,9 +279,9 @@ proc nsu_take_ss*(mode: NsuMode, fileName: string = "", savePath: string = "",
   isVisibleWin = true
   discard ShowWindow(selWindow,SW_SHOW)
   var msg: MSG
-  while GetMessage( addr msg, NULL, 0, 0 ) > 0:
-   discard TranslateMessage( addr msg )
-   discard DispatchMessage( addr msg )
+  while GetMessage(addr msg, NULL, 0, 0) > 0:
+   discard TranslateMessage(addr msg)
+   discard DispatchMessage(addr msg)
 
  of ACTIVE_WIN:
   curSelVal.window = GetForegroundWindow()
@@ -292,9 +292,9 @@ proc nsu_take_ss*(mode: NsuMode, fileName: string = "", savePath: string = "",
   isButtonPressed = true
   discard ShowWindow(selWindow,SW_SHOW)
   var msg: MSG
-  while GetMessage( addr msg, NULL, 0, 0 ) > 0:
-   discard TranslateMessage( addr msg )
-   discard DispatchMessage( addr msg )
+  while GetMessage(addr msg, NULL, 0, 0) > 0:
+   discard TranslateMessage(addr msg)
+   discard DispatchMessage(addr msg)
 
 
  case mode
@@ -322,12 +322,12 @@ proc nsu_take_ss*(mode: NsuMode, fileName: string = "", savePath: string = "",
    width = curSelVal.width
    height = curSelVal.height
    discard SelectObject(hCaptureDC,hCaptureBitmap)
-   discard BitBlt(hCaptureDC, 0,0, curSelVal.width, curSelVal.height,
-       hDesktopDC, curSelVal.start_x, curSelVal.start_y, SRCCOPY )
+   discard BitBlt(hCaptureDC, 0, 0, curSelVal.width, curSelVal.height,
+       hDesktopDC, curSelVal.start_x, curSelVal.start_y, SRCCOPY)
 
  of FULL:
   var devModeSettings: DEVMODE
-  discard EnumDisplaySettings(nil, ENUM_CURRENT_SETTINGS, addr devModeSettings )
+  discard EnumDisplaySettings(nil, ENUM_CURRENT_SETTINGS, addr devModeSettings)
   width = devModeSettings.dmPelsWidth
   height = devmodeSettings.dmPelsHeight
   hDesktopWnd = GetDesktopWindow()
@@ -335,13 +335,13 @@ proc nsu_take_ss*(mode: NsuMode, fileName: string = "", savePath: string = "",
   hCaptureDC = CreateCompatibleDC(hDesktopDC)
   hCaptureBitmap = CreateCompatibleBitmap(hDesktopDC, width, height)
   discard SelectObject(hCaptureDC,hCaptureBitmap)
-  discard BitBlt(hCaptureDC, 0,0,width,height, hDesktopDC, 0,0,SRCCOPY )
+  discard BitBlt(hCaptureDC, 0, 0, width, height, hDesktopDC, 0, 0, SRCCOPY)
 
- result = nsu_genFilePath(fileName,savePath)
+ result = nsu_genFilePath(fileName, savePath)
  if not nsu_save_image(result, hCaptureDC, hCaptureBitmap, width, height):
   result = ""
 
- discard ReleaseDC(hDesktopWnd,hDesktopDC)
+ discard ReleaseDC(hDesktopWnd, hDesktopDC)
  if curSelVal.useWindow:
   discard ReleaseDC(curSelVal.window, hCustomDC)
  discard DeleteDC(hCaptureDC)

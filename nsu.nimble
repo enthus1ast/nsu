@@ -1,5 +1,5 @@
 # Package
-version = "0.1.5"
+version = "0.1.6"
 author = "Senketsu"
 description = "A small screenshot library / utility for Windows & X11 based systems."
 license = "MIT"
