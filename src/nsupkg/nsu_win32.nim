@@ -94,10 +94,6 @@ proc nsu_to_image(hdc: HDC, hBitmap: HBITMAP, width, height: int): Image =
       (pixel.r, pixel.g, pixel.b) = (pixel.b, pixel.g, pixel.r)
       result.putRgba(x, y, pixel)
 
-proc nsu_save_image(destPath: string, hdc: HDC, hBitmap: HBITMAP, width, height: int): bool =
-  var image = nsu_to_image(hdc, hBitmap, width, height)
-  image.save(destPath)
-  return true
 
 proc nsuRedrawSelection (hWnd: HWND, rect: RECT)=
  var
@@ -247,104 +243,104 @@ proc nsu_init_windows():HWND =
     return
   result = hwnd
 
+proc nsu_get_ss*(mode: NsuMode, delay: int, countDown: bool = false): Image =
+  ## Like `nsu_take_ss` but returns the Image rather then writing it to disk.
+  var
+    width, height: cint = 0
+    selWinRc: RECT
+    hDesktopDC, hCaptureDC,hCustomDC: HDC
+    hCaptureBitmap: HBITMAP
+    hDesktopWnd: HWND
+
+  if delay > 0:
+    if countDown:
+      nsu_countDown(delay)
+    else:
+      nsu_silentDelay(delay)
+
+  case mode
+  of FULL:
+    discard
+
+  of AREA:
+    isVisibleWin = true
+    discard ShowWindow(selWindow,SW_SHOW)
+    var msg: MSG
+    while GetMessage(addr msg, NULL, 0, 0) > 0:
+      discard TranslateMessage(addr msg)
+      discard DispatchMessage(addr msg)
+
+  of ACTIVE_WIN:
+    curSelVal.window = GetForegroundWindow()
+    curSelVal.useWindow = true
+
+  of SELECT_WIN:
+    isVisibleWin = true
+    isButtonPressed = true
+    discard ShowWindow(selWindow,SW_SHOW)
+    var msg: MSG
+    while GetMessage(addr msg, NULL, 0, 0) > 0:
+      discard TranslateMessage(addr msg)
+      discard DispatchMessage(addr msg)
+
+
+  case mode
+  of AREA, SELECT_WIN, ACTIVE_WIN:
+    if curSelVal.useWindow:
+      discard GetWindowRect(curSelVal.window, addr selWinRc)
+      width = selWinRc.right - selWinRc.left
+      height = selWinRc.bottom - selWinRc.top
+      hDesktopWnd = GetDesktopWindow()
+      hDesktopDC = GetDC(hDesktopWnd)
+      hCustomDC = GetDC(curSelVal.window)
+      hCaptureDC = CreateCompatibleDC(hCustomDC)
+      hCaptureBitmap = CreateCompatibleBitmap(hCustomDC, width, height)
+      discard SelectObject(hCaptureDC,hCaptureBitmap)
+      discard BitBlt(hCaptureDC, 0,0, width, height, hDesktopDC,
+        selWinRc.left, selWinRc.top, SRCCOPY) # selWinRc.TopLeft.x, selWinRc.TopLeft.y
+
+
+    else:
+      hDesktopWnd = GetDesktopWindow()
+      hDesktopDC = GetDC(hDesktopWnd)
+      hCaptureDC = CreateCompatibleDC(hDesktopDC)
+      hCaptureBitmap = CreateCompatibleBitmap(hDesktopDC, curSelVal.width, curSelVal.height)
+      width = curSelVal.width
+      height = curSelVal.height
+      discard SelectObject(hCaptureDC,hCaptureBitmap)
+      discard BitBlt(hCaptureDC, 0, 0, curSelVal.width, curSelVal.height,
+          hDesktopDC, curSelVal.start_x, curSelVal.start_y, SRCCOPY)
+
+  of FULL:
+    var devModeSettings: DEVMODE
+    discard EnumDisplaySettings(nil, ENUM_CURRENT_SETTINGS, addr devModeSettings)
+    width = devModeSettings.dmPelsWidth
+    height = devmodeSettings.dmPelsHeight
+    hDesktopWnd = GetDesktopWindow()
+    hDesktopDC = GetDC(hDesktopWnd)
+    hCaptureDC = CreateCompatibleDC(hDesktopDC)
+    hCaptureBitmap = CreateCompatibleBitmap(hDesktopDC, width, height)
+    discard SelectObject(hCaptureDC,hCaptureBitmap)
+    discard BitBlt(hCaptureDC, 0, 0, width, height, hDesktopDC, 0, 0, SRCCOPY)
+
+  result = nsu_to_image(hCaptureDC, hCaptureBitmap, width, height)
+
+  discard ReleaseDC(hDesktopWnd, hDesktopDC)
+  if curSelVal.useWindow:
+    discard ReleaseDC(curSelVal.window, hCustomDC)
+  discard DeleteDC(hCaptureDC)
+  discard DeleteObject(hCaptureBitmap)
+
+  curSelVal.clear()
 
 proc nsu_take_ss*(mode: NsuMode, fileName: string = "", savePath: string = "",
-                   delay:int = 0, countDown: bool = false): string =
- ## Main screenshoting  procedure.
- ## @mode - NsuMode for screenshot [FULL, AREA,ACTIVE_WIN, SELECT_WIN]
- ## @fileName - user specified filename (optional)
- ## @savePath - user specified path to save into (optional)
- ## @delay - Delay for FULL or ACTIVE_WIN mode screen shot (optional) [max 15sec]
- ## @countDown - To output countdow into stdout
- result = ""
-
- var
-  width,height: cint = 0
-  selWinRc: RECT
-  hDesktopDC, hCaptureDC,hCustomDC: HDC
-  hCaptureBitmap: HBITMAP
-  hDesktopWnd: HWND
-
- if delay > 0:
-  if countDown:
-   nsu_countDown(delay)
-  else:
-   nsu_silentDelay(delay)
-
- case mode
- of FULL:
-  discard
-
- of AREA:
-  isVisibleWin = true
-  discard ShowWindow(selWindow,SW_SHOW)
-  var msg: MSG
-  while GetMessage(addr msg, NULL, 0, 0) > 0:
-   discard TranslateMessage(addr msg)
-   discard DispatchMessage(addr msg)
-
- of ACTIVE_WIN:
-  curSelVal.window = GetForegroundWindow()
-  curSelVal.useWindow = true
-
- of SELECT_WIN:
-  isVisibleWin = true
-  isButtonPressed = true
-  discard ShowWindow(selWindow,SW_SHOW)
-  var msg: MSG
-  while GetMessage(addr msg, NULL, 0, 0) > 0:
-   discard TranslateMessage(addr msg)
-   discard DispatchMessage(addr msg)
-
-
- case mode
- of AREA, SELECT_WIN, ACTIVE_WIN:
-  if curSelVal.useWindow:
-
-   discard GetWindowRect(curSelVal.window, addr selWinRc)
-   width = selWinRc.right - selWinRc.left
-   height = selWinRc.bottom - selWinRc.top
-   hDesktopWnd = GetDesktopWindow()
-   hDesktopDC = GetDC(hDesktopWnd)
-   hCustomDC = GetDC(curSelVal.window)
-   hCaptureDC = CreateCompatibleDC(hCustomDC)
-   hCaptureBitmap = CreateCompatibleBitmap(hCustomDC, width, height)
-   discard SelectObject(hCaptureDC,hCaptureBitmap)
-   discard BitBlt(hCaptureDC, 0,0, width, height, hDesktopDC,
-    selWinRc.left, selWinRc.top, SRCCOPY) # selWinRc.TopLeft.x, selWinRc.TopLeft.y
-
-
-  else:
-   hDesktopWnd = GetDesktopWindow()
-   hDesktopDC = GetDC(hDesktopWnd)
-   hCaptureDC = CreateCompatibleDC(hDesktopDC)
-   hCaptureBitmap = CreateCompatibleBitmap(hDesktopDC, curSelVal.width, curSelVal.height)
-   width = curSelVal.width
-   height = curSelVal.height
-   discard SelectObject(hCaptureDC,hCaptureBitmap)
-   discard BitBlt(hCaptureDC, 0, 0, curSelVal.width, curSelVal.height,
-       hDesktopDC, curSelVal.start_x, curSelVal.start_y, SRCCOPY)
-
- of FULL:
-  var devModeSettings: DEVMODE
-  discard EnumDisplaySettings(nil, ENUM_CURRENT_SETTINGS, addr devModeSettings)
-  width = devModeSettings.dmPelsWidth
-  height = devmodeSettings.dmPelsHeight
-  hDesktopWnd = GetDesktopWindow()
-  hDesktopDC = GetDC(hDesktopWnd)
-  hCaptureDC = CreateCompatibleDC(hDesktopDC)
-  hCaptureBitmap = CreateCompatibleBitmap(hDesktopDC, width, height)
-  discard SelectObject(hCaptureDC,hCaptureBitmap)
-  discard BitBlt(hCaptureDC, 0, 0, width, height, hDesktopDC, 0, 0, SRCCOPY)
-
- result = nsu_genFilePath(fileName, savePath)
- if not nsu_save_image(result, hCaptureDC, hCaptureBitmap, width, height):
-  result = ""
-
- discard ReleaseDC(hDesktopWnd, hDesktopDC)
- if curSelVal.useWindow:
-  discard ReleaseDC(curSelVal.window, hCustomDC)
- discard DeleteDC(hCaptureDC)
- discard DeleteObject(hCaptureBitmap)
-
- curSelVal.clear()
+                   delay: int = 0, countDown: bool = false): string =
+  ## Main screenshoting  procedure.
+  ## @mode - NsuMode for screenshot [FULL, AREA,ACTIVE_WIN, SELECT_WIN]
+  ## @fileName - user specified filename (optional)
+  ## @savePath - user specified path to save into (optional)
+  ## @delay - Delay for FULL or ACTIVE_WIN mode screen shot (optional) [max 15sec]
+  ## @countDown - To output countdow into stdout
+  result = nsu_genFilePath(fileName, savePath)
+  var image = nsu_get_ss(mode, delay, countDown)
+  image.save(result)
