@@ -1,6 +1,6 @@
 # Package
 version = "0.1.6"
-author = "Senketsu"
+author = "Senketsu, enthus1ast"
 description = "A small screenshot library / utility for Windows & X11 based systems."
 license = "MIT"
 srcDir = "src"

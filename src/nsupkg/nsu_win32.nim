@@ -264,7 +264,7 @@ proc nsu_get_ss*(mode: NsuMode, delay: int, countDown: bool = false): Image =
 
   of AREA:
     isVisibleWin = true
-    discard ShowWindow(selWindow,SW_SHOW)
+    discard ShowWindow(selWindow, SW_SHOW)
     var msg: MSG
     while GetMessage(addr msg, NULL, 0, 0) > 0:
       discard TranslateMessage(addr msg)
@@ -277,7 +277,7 @@ proc nsu_get_ss*(mode: NsuMode, delay: int, countDown: bool = false): Image =
   of SELECT_WIN:
     isVisibleWin = true
     isButtonPressed = true
-    discard ShowWindow(selWindow,SW_SHOW)
+    discard ShowWindow(selWindow, SW_SHOW)
     var msg: MSG
     while GetMessage(addr msg, NULL, 0, 0) > 0:
       discard TranslateMessage(addr msg)
